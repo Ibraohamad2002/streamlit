@@ -2,18 +2,19 @@ import streamlit as st
 from bs4 import BeautifulSoup
 import pandas as pd
 import re
-from io import BytesIO
+from datetime import datetime
+import tempfile
 from supabase import create_client, Client
 
 # ======== إعداد Supabase ========
 SUPABASE_URL = "https://ociaekhyqtiintzguudo.supabase.co"  # ضع رابط مشروعك هنا
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9jaWFla2h5cXRpaW50emd1dWRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzMjI0OTAsImV4cCI6MjA3Njg5ODQ5MH0.7yeAbnv2KUqaAvbyxr8mRvpG9oALl4k9mmJd3_UmwCU"                       # ضع anon key هنا
-BUCKET_NAME = "uploads"                    # اسم الـ bucket الذي أنشأته
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9jaWFla2h5cXRpaW50emd1dWRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzMjI0OTAsImV4cCI6MjA3Njg5ODQ5MH0.7yeAbnv2KUqaAvbyxr8mRvpG9oALl4k9mmJd3_UmwCU"                      # ضع anon key هنا
+BUCKET_NAME = "uploads"                   # اسم الـ bucket الذي أنشأته
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ======== واجهة Streamlit ========
-st.title("رفع ملفات ASPX وتحويلها إلى Excel")
+st.title("رفع ملفات ASPX وتحويلها إلى Excel على Supabase")
 
 uploaded_file = st.file_uploader("اختر ملف ASPX", type=["aspx"])
 
@@ -68,25 +69,16 @@ if uploaded_file is not None:
     columns = ["الفصل الدراسي", "السنة الدراسية"] + [f"Column{i}" for i in range(1, max_cols-1)]
     df = pd.DataFrame(all_rows, columns=columns)
 
-    # تحويل DataFrame إلى Excel داخل الذاكرة
-    output = BytesIO()
-    df.to_excel(output, index=False)
-    output.seek(0)
+    # إنشاء اسم ملف فريد لتجنب الكتابة فوق الملفات القديمة
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    file_name = uploaded_file.name.replace(".aspx", f"_{timestamp}.xlsx")
 
-    # زر لتحميل الملف
-    st.download_button(
-        label="⬇️ تحميل ملف Excel",
-        data=output,
-        file_name=uploaded_file.name.replace(".aspx", ".xlsx"),
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    )
-
-    # ===== رفع الملف على Supabase =====
-    try:
-        output.seek(0)
-        file_name = uploaded_file.name.replace(".aspx", ".xlsx")
-        res = supabase.storage.from_(BUCKET_NAME).upload(file_name, output, {"cacheControl": "3600", "upsert": True})
-        if res:
-            st.success(f"✅ تم رفع الملف إلى Supabase: {file_name}")
-    except Exception as e:
-        st.error(f"❌ حدث خطأ أثناء رفع الملف إلى Supabase: {e}")
+    # ===== رفع الملف على Supabase باستخدام ملف مؤقت =====
+    with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
+        df.to_excel(tmp.name, index=False)
+        tmp.flush()
+        try:
+            res = supabase.storage.from_(BUCKET_NAME).upload(file_name, tmp.name, {"upsert": True})
+            st.success(f"✅ تم رفع الملف بنجاح على Supabase: {file_name}")
+        except Exception as e:
+            st.error(f"❌ حدث خطأ أثناء رفع الملف إلى Supabase: {e}")
