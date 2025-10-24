@@ -14,7 +14,7 @@ BUCKET_NAME = "uploads"                   # اسم الـ bucket الذي أنش
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ======== واجهة Streamlit ========
-st.title("رفع ملفات ASPX وتحويلها إلى Excel على Supabase")
+st.title("upioads file")
 
 uploaded_file = st.file_uploader("اختر ملف ASPX", type=["aspx"])
 
