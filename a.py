@@ -24,14 +24,12 @@ if uploaded_file is not None:
 
         # استخراج بيانات الطالب
         full_text = soup.get_text(separator="\n")
-        name_match = re.search(r"اسم الطالب\s*[:\-]?\s*(.+)", full_text)
-        id_match = re.search(r"رقم الطالب\s*[:\-]?\s*(.+)", full_text)  # تعديل ليأخذ الرقم كامل
+        name_match = re.search(r"اسم الطالب\s*[:\-]?\s*(\S.+)", full_text)
         major_match = re.search(r"التخصص\s*[:\-]?\s*(.+)", full_text)
         admission_year_match = re.search(r"سنة القبول\s*[:\-]?\s*(\d{4})", full_text)
         admission_type_match = re.search(r"نوع القبول\s*[:\-]?\s*(.+)", full_text)
 
         student_name = name_match.group(1).strip() if name_match else ""
-        student_id = id_match.group(1).strip() if id_match else ""
         major = major_match.group(1).strip() if major_match else ""
         admission_year = admission_year_match.group(1).strip() if admission_year_match else ""
         admission_type = admission_type_match.group(1).strip() if admission_type_match else ""
@@ -48,7 +46,7 @@ if uploaded_file is not None:
                 current_semester = semester_match.group(1) if semester_match else ""
                 current_year = year_match.group(1) if year_match else ""
                 if all_rows:
-                    all_rows.append([""]*7)
+                    all_rows.append([""]*6)
                 continue
 
             for i, tr in enumerate(table.find_all("tr")):
@@ -59,9 +57,9 @@ if uploaded_file is not None:
                     continue
                 # أول صف يحتوي بيانات الطالب، الباقي صفوف فارغة للأعمدة الأساسية
                 if i == 0:
-                    row = [student_name, student_id, major, admission_year, admission_type, current_semester, current_year] + cells
+                    row = [student_name, major, admission_year, admission_type, current_semester, current_year] + cells
                 else:
-                    row = [""]*7 + cells
+                    row = [""]*6 + cells
                 all_rows.append(row)
 
         if not all_rows:
@@ -71,7 +69,7 @@ if uploaded_file is not None:
             for r in all_rows:
                 while len(r) < max_cols:
                     r.append("")
-            columns = ["اسم الطالب", "رقم الطالب", "التخصص", "سنة القبول", "نوع القبول", "الفصل الدراسي", "السنة الدراسية"] + [f"Column{i}" for i in range(1, max_cols - 7 + 1)]
+            columns = ["اسم الطالب", "التخصص", "سنة القبول", "نوع القبول", "الفصل الدراسي", "السنة الدراسية"] + [f"Column{i}" for i in range(1, max_cols - 6 + 1)]
             df = pd.DataFrame(all_rows, columns=columns)
 
             excel_buffer = io.BytesIO()
