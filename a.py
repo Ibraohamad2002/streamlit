@@ -9,7 +9,7 @@ from openpyxl import load_workbook
 
 # إعداد Supabase
 SUPABASE_URL = "https://ociaekhyqtiintzguudo.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9jaWFla2h5cXRpaW50emd1dWRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzMjI0OTAsImV4cCI6MjA3Njg5ODQ5MH0.7yeAbnv2KUqaAvbyxr8mRvpG9oALl4k9mmJd3_UmwCU"
+SUPABASE_KEY = "yJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9jaWFla2h5cXRpaW50emd1dWRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzMjI0OTAsImV4cCI6MjA3Njg5ODQ5MH0.7yeAbnv2KUqaAvbyxr8mRvpG9oALl4k9mmJd3_UmwCU"
 BUCKET_NAME = "uploads"
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -26,13 +26,14 @@ if uploaded_file is not None:
 
         # استخراج بيانات الطالب
         full_text = soup.get_text(separator="\n")
-        id_match = re.search(r"رقم الطالب\s*[:\-]?\s*(.+)", full_text)
+        student_id_match = re.search(r"رقم الطالب\s*[:\-]?\s*(.+)", full_text)
+        student_name_match = re.search(r"اسم الطالب\s*[:\-]?\s*(.+)", full_text)
         major_match = re.search(r"التخصص\s*[:\-]?\s*(.+)", full_text)
         admission_year_match = re.search(r"سنة القبول\s*[:\-]?\s*(\d{4})", full_text)
         admission_type_match = re.search(r"نوع القبول\s*[:\-]?\s*(.+)", full_text)
 
-        student_name = name_match.group(1).strip() if name_match else ""
-        student_id = id_match.group(1).strip() if id_match else ""
+        student_id = student_id_match.group(1).strip() if student_id_match else ""
+        student_name = student_name_match.group(1).strip() if student_name_match else ""
         major = major_match.group(1).strip() if major_match else ""
         admission_year = admission_year_match.group(1).strip() if admission_year_match else ""
         admission_type = admission_type_match.group(1).strip() if admission_type_match else ""
@@ -49,7 +50,7 @@ if uploaded_file is not None:
                 current_semester = semester_match.group(1) if semester_match else ""
                 current_year = year_match.group(1) if year_match else ""
                 if all_rows:
-                    all_rows.append([""]*6)  # صف فارغ بين الفصول
+                    all_rows.append([""]*7)  # صف فارغ بين الفصول
                 continue
 
             for i, tr in enumerate(table.find_all("tr")):
@@ -58,6 +59,7 @@ if uploaded_file is not None:
                 cells = [td.get_text(strip=True) for td in tr.find_all(["td", "th"])]
                 if not cells:
                     continue
+                # أول صف يحتوي بيانات الطالب، الباقي صفوف فارغة للخانات الأساسية
                 if i == 0:
                     row = [student_id, student_name, major, admission_year, admission_type, current_semester, current_year] + cells
                 else:
