@@ -4,6 +4,8 @@ import pandas as pd
 import io
 import re
 from supabase import create_client, Client
+from openpyxl.utils import get_column_letter
+from openpyxl import load_workbook
 
 # إعداد Supabase
 SUPABASE_URL = "https://ociaekhyqtiintzguudo.supabase.co"
@@ -29,6 +31,7 @@ if uploaded_file is not None:
         admission_year_match = re.search(r"سنة القبول\s*[:\-]?\s*(\d{4})", full_text)
         admission_type_match = re.search(r"نوع القبول\s*[:\-]?\s*(.+)", full_text)
 
+        student_name = name_match.group(1).strip() if name_match else ""
         student_id = id_match.group(1).strip() if id_match else ""
         major = major_match.group(1).strip() if major_match else ""
         admission_year = admission_year_match.group(1).strip() if admission_year_match else ""
@@ -55,11 +58,10 @@ if uploaded_file is not None:
                 cells = [td.get_text(strip=True) for td in tr.find_all(["td", "th"])]
                 if not cells:
                     continue
-                # أول صف يحتوي رقم الطالب، الباقي صفوف فارغة للخانات الأساسية
                 if i == 0:
-                    row = [student_id, major, admission_year, admission_type, current_semester, current_year] + cells
+                    row = [student_id, student_name, major, admission_year, admission_type, current_semester, current_year] + cells
                 else:
-                    row = [""]*6 + cells
+                    row = [""]*7 + cells
                 all_rows.append(row)
 
         if not all_rows:
@@ -69,18 +71,36 @@ if uploaded_file is not None:
             for r in all_rows:
                 while len(r) < max_cols:
                     r.append("")
-            columns = ["رقم الطالب", "التخصص", "سنة القبول", "نوع القبول", "الفصل الدراسي", "السنة الدراسية"] + [f"Column{i}" for i in range(1, max_cols - 6 + 1)]
+            columns = ["رقم الطالب", "اسم الطالب", "التخصص", "سنة القبول", "نوع القبول", "الفصل الدراسي", "السنة الدراسية"] + [f"Column{i}" for i in range(1, max_cols - 7 + 1)]
             df = pd.DataFrame(all_rows, columns=columns)
 
+            # حفظ الملف في الذاكرة بصيغة Excel
             excel_buffer = io.BytesIO()
             df.to_excel(excel_buffer, index=False)
             excel_buffer.seek(0)
+
+            # تعديل عرض الأعمدة تلقائياً
+            wb = load_workbook(excel_buffer)
+            ws = wb.active
+            for col in ws.columns:
+                max_length = 0
+                col_letter = get_column_letter(col[0].column)
+                for cell in col:
+                    try:
+                        if cell.value:
+                            max_length = max(max_length, len(str(cell.value)))
+                    except:
+                        pass
+                ws.column_dimensions[col_letter].width = max_length + 5  # زيادة عرض العمود
+            excel_buffer2 = io.BytesIO()
+            wb.save(excel_buffer2)
+            excel_buffer2.seek(0)
 
             file_name = uploaded_file.name.replace(".aspx", ".xlsx")
 
             res = supabase.storage.from_(BUCKET_NAME).upload(
                 file_name,
-                excel_buffer.getvalue(),
+                excel_buffer2.getvalue(),
                 {"content-type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}
             )
 
