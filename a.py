@@ -14,7 +14,7 @@ BUCKET_NAME = "uploads"                   # اسم الـ bucket الذي أنش
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # ======== واجهة Streamlit ========
-st.title("upioads file")
+st.title("رفع ملفات ASPX وتحويلها إلى Excel على Supabase")
 
 uploaded_file = st.file_uploader("اختر ملف ASPX", type=["aspx"])
 
@@ -78,7 +78,8 @@ if uploaded_file is not None:
         df.to_excel(tmp.name, index=False)
         tmp.flush()
         try:
-            res = supabase.storage.from_(BUCKET_NAME).upload(file_name, tmp.name, {"upsert": True})
+            # upsert كـ string لتجنب خطأ Header value
+            res = supabase.storage.from_(BUCKET_NAME).upload(file_name, tmp.name, {"upsert": "true"})
             st.success(f"✅ تم رفع الملف بنجاح على Supabase: {file_name}")
         except Exception as e:
             st.error(f"❌ حدث خطأ أثناء رفع الملف إلى Supabase: {e}")
