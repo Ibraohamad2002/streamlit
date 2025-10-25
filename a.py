@@ -6,7 +6,7 @@ import re
 from supabase import create_client, Client
 
 # إعداد Supabase
-SUPABASE_URL = ""https://ociaekhyqtiintzguudo.supabase.co"
+SUPABASE_URL = "https://ociaekhyqtiintzguudo.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9jaWFla2h5cXRpaW50emd1dWRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzMjI0OTAsImV4cCI6MjA3Njg5ODQ5MH0.7yeAbnv2KUqaAvbyxr8mRvpG9oALl4k9mmJd3_UmwCU"
 BUCKET_NAME = "uploads"
 
