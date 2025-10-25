@@ -19,7 +19,7 @@ if not SUPABASE_URL or not SUPABASE_KEY:
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-st.set_page_config(page_title="رفع ملفات الطلاب", page_icon="📤", layout="centered")
+st.set_page_config(page_title="Student File Upload", page_icon="📤", layout="centered")
 
 st.markdown(
     "<h1 style='text-align: center; color: #4CAF50;'>رفع ملفات الطلاب وتحويلها</h1>"
