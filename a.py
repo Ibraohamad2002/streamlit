@@ -22,13 +22,13 @@ if uploaded_file is not None:
         soup = BeautifulSoup(content, "html.parser")
         tables = soup.find_all("table")
 
-        # استخراج بيانات الطالب من أعلى الصفحة أو من صف محدد
+        # استخراج بيانات الطالب
         full_text = soup.get_text(separator="\n")
-        name_match = re.search(r"اسم الطالب\s*[:\-]?\s*(\S.+)", full_text)
-        id_match = re.search(r"رقم الطالب\s*[:\-]?\s*(\S+)", full_text)
-        major_match = re.search(r"التخصص\s*[:\-]?\s*(\S.+)", full_text)
+        name_match = re.search(r"اسم الطالب\s*[:\-]?\s*(.+)", full_text)
+        id_match = re.search(r"رقم الطالب\s*[:\-]?\s*(.+)", full_text)  # تعديل ليأخذ الرقم كامل
+        major_match = re.search(r"التخصص\s*[:\-]?\s*(.+)", full_text)
         admission_year_match = re.search(r"سنة القبول\s*[:\-]?\s*(\d{4})", full_text)
-        admission_type_match = re.search(r"نوع القبول\s*[:\-]?\s*(\S+)", full_text)
+        admission_type_match = re.search(r"نوع القبول\s*[:\-]?\s*(.+)", full_text)
 
         student_name = name_match.group(1).strip() if name_match else ""
         student_id = id_match.group(1).strip() if id_match else ""
@@ -37,34 +37,36 @@ if uploaded_file is not None:
         admission_type = admission_type_match.group(1).strip() if admission_type_match else ""
 
         all_rows = []
-        current_semester, current_year = "", ""
 
         for table in tables:
             title_td = table.find("td", colspan=True)
+            current_semester, current_year = "", ""
             if title_td:
                 title_text = title_td.get_text(strip=True)
                 semester_match = re.search(r'(الفصل\s+\S+)', title_text)
                 year_match = re.search(r'(\d{4}/\d{4})', title_text)
                 current_semester = semester_match.group(1) if semester_match else ""
                 current_year = year_match.group(1) if year_match else ""
-                # إضافة صف فارغ للفصل السابق
                 if all_rows:
                     all_rows.append([""]*7)
                 continue
 
-            for tr in table.find_all("tr"):
+            for i, tr in enumerate(table.find_all("tr")):
                 if tr.find("td", colspan=True):
                     continue
                 cells = [td.get_text(strip=True) for td in tr.find_all(["td", "th"])]
                 if not cells:
                     continue
-                # إضافة بيانات الطالب في أول الأعمدة
-                all_rows.append([student_name, student_id, major, admission_year, admission_type, current_semester, current_year] + cells)
+                # أول صف يحتوي بيانات الطالب، الباقي صفوف فارغة للأعمدة الأساسية
+                if i == 0:
+                    row = [student_name, student_id, major, admission_year, admission_type, current_semester, current_year] + cells
+                else:
+                    row = [""]*7 + cells
+                all_rows.append(row)
 
         if not all_rows:
             st.warning("⚠️ لم يتم العثور على أي بيانات في الملف.")
         else:
-            # معالجة الجداول وإنشاء ملف Excel في الذاكرة
             max_cols = max(len(r) for r in all_rows)
             for r in all_rows:
                 while len(r) < max_cols:
@@ -72,14 +74,12 @@ if uploaded_file is not None:
             columns = ["اسم الطالب", "رقم الطالب", "التخصص", "سنة القبول", "نوع القبول", "الفصل الدراسي", "السنة الدراسية"] + [f"Column{i}" for i in range(1, max_cols - 7 + 1)]
             df = pd.DataFrame(all_rows, columns=columns)
 
-            # حفظ الملف في الذاكرة بصيغة Excel
             excel_buffer = io.BytesIO()
             df.to_excel(excel_buffer, index=False)
             excel_buffer.seek(0)
 
             file_name = uploaded_file.name.replace(".aspx", ".xlsx")
 
-            # رفع الملف إلى Supabase Storage
             res = supabase.storage.from_(BUCKET_NAME).upload(
                 file_name,
                 excel_buffer.getvalue(),
@@ -93,4 +93,3 @@ if uploaded_file is not None:
 
     except Exception as e:
         st.error(f"❌ خطأ أثناء المعالجة: {e}")
-
