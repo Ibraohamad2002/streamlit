@@ -27,30 +27,30 @@ if uploaded_file is not None:
         # استخراج بيانات الطالب
         full_text = soup.get_text(separator="\n")
         student_id_match = re.search(r"رقم الطالب\s*[:\-]?\s*(.+)", full_text)
-        student_name_match = re.search(r"اسم الطالب\s*[:\-]?\s*(.+)", full_text)
         major_match = re.search(r"التخصص\s*[:\-]?\s*(.+)", full_text)
         admission_year_match = re.search(r"سنة القبول\s*[:\-]?\s*(\d{4})", full_text)
         admission_type_match = re.search(r"نوع القبول\s*[:\-]?\s*(.+)", full_text)
 
         student_id = student_id_match.group(1).strip() if student_id_match else ""
-        student_name = student_name_match.group(1).strip() if student_name_match else ""
         major = major_match.group(1).strip() if major_match else ""
         admission_year = admission_year_match.group(1).strip() if admission_year_match else ""
         admission_type = admission_type_match.group(1).strip() if admission_type_match else ""
+
+        # تحويل سنة القبول إلى نطاق كامل مثل 2020/2021
+        if admission_year:
+            start_year = int(admission_year)
+            end_year = start_year + 1
+            admission_year_full = f"{start_year}/{end_year}"
+        else:
+            admission_year_full = ""
 
         all_rows = []
 
         for table in tables:
             title_td = table.find("td", colspan=True)
-            current_semester, current_year = "", ""
             if title_td:
-                title_text = title_td.get_text(strip=True)
-                semester_match = re.search(r'(الفصل\s+\S+)', title_text)
-                year_match = re.search(r'(\d{4}/\d{4})', title_text)
-                current_semester = semester_match.group(1) if semester_match else ""
-                current_year = year_match.group(1) if year_match else ""
                 if all_rows:
-                    all_rows.append([""]*7)  # صف فارغ بين الفصول
+                    all_rows.append([""]*4)  # صف فارغ بين الفصول
                 continue
 
             for i, tr in enumerate(table.find_all("tr")):
@@ -61,9 +61,9 @@ if uploaded_file is not None:
                     continue
                 # أول صف يحتوي بيانات الطالب، الباقي صفوف فارغة للخانات الأساسية
                 if i == 0:
-                    row = [student_id, student_name, major, admission_year, admission_type, current_semester, current_year] + cells
+                    row = [student_id, major, admission_year_full, admission_type] + cells
                 else:
-                    row = [""]*7 + cells
+                    row = [""]*4 + cells
                 all_rows.append(row)
 
         if not all_rows:
@@ -73,7 +73,7 @@ if uploaded_file is not None:
             for r in all_rows:
                 while len(r) < max_cols:
                     r.append("")
-            columns = ["رقم الطالب", "اسم الطالب", "التخصص", "سنة القبول", "نوع القبول", "الفصل الدراسي", "السنة الدراسية"] + [f"Column{i}" for i in range(1, max_cols - 7 + 1)]
+            columns = ["رقم الطالب", "التخصص", "سنة القبول", "نوع القبول"] + [f"Column{i}" for i in range(1, max_cols - 4 + 1)]
             df = pd.DataFrame(all_rows, columns=columns)
 
             # حفظ الملف في الذاكرة بصيغة Excel
@@ -93,7 +93,7 @@ if uploaded_file is not None:
                             max_length = max(max_length, len(str(cell.value)))
                     except:
                         pass
-                ws.column_dimensions[col_letter].width = max_length + 5  # زيادة عرض العمود
+                ws.column_dimensions[col_letter].width = max_length + 5
             excel_buffer2 = io.BytesIO()
             wb.save(excel_buffer2)
             excel_buffer2.seek(0)
@@ -113,3 +113,4 @@ if uploaded_file is not None:
 
     except Exception as e:
         st.error(f"❌ خطأ أثناء المعالجة: {e}")
+
