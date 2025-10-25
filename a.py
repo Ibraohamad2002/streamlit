@@ -7,7 +7,7 @@ from supabase import create_client, Client
 from openpyxl.utils import get_column_letter
 from openpyxl import load_workbook
 
-# إعداد Supabase
+# Supabase configuration
 SUPABASE_URL = "https://ociaekhyqtiintzguudo.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9jaWFla2h5cXRpaW50emd1dWRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzMjI0OTAsImV4cCI6MjA3Njg5ODQ5MH0.7yeAbnv2KUqaAvbyxr8mRvpG9oALl4k9mmJd3_UmwCU"
 BUCKET_NAME = "uploads"
@@ -16,7 +16,7 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 st.title("Upload Student ASPX Files")
 
-uploaded_file = st.file_uploader("📤 اختر ملف ASPX", type=["aspx"])
+uploaded_file = st.file_uploader("📤 Choose an ASPX file", type=["aspx"])
 
 if uploaded_file is not None:
     try:
@@ -24,7 +24,7 @@ if uploaded_file is not None:
         soup = BeautifulSoup(content, "html.parser")
         tables = soup.find_all("table")
 
-        # استخراج بيانات الطالب
+        # Extract student data
         full_text = soup.get_text(separator="\n")
         student_id_match = re.search(r"رقم الطالب\s*[:\-]?\s*(.+)", full_text)
         major_match = re.search(r"التخصص\s*[:\-]?\s*(.+)", full_text)
@@ -36,7 +36,7 @@ if uploaded_file is not None:
         admission_year = admission_year_match.group(1).strip() if admission_year_match else ""
         admission_type = admission_type_match.group(1).strip() if admission_type_match else ""
 
-        # تحويل سنة القبول إلى نطاق كامل مثل 2020/2021
+        # Convert admission year to full academic year (e.g., 2020/2021)
         if admission_year:
             start_year = int(admission_year)
             end_year = start_year + 1
@@ -46,11 +46,12 @@ if uploaded_file is not None:
 
         all_rows = []
 
+        # Iterate over all tables in the ASPX file
         for table in tables:
             title_td = table.find("td", colspan=True)
             if title_td:
                 if all_rows:
-                    all_rows.append([""]*4)  # صف فارغ بين الفصول
+                    all_rows.append([""]*4)  # Add empty row between semesters
                 continue
 
             for i, tr in enumerate(table.find_all("tr")):
@@ -59,7 +60,7 @@ if uploaded_file is not None:
                 cells = [td.get_text(strip=True) for td in tr.find_all(["td", "th"])]
                 if not cells:
                     continue
-                # أول صف يحتوي بيانات الطالب، الباقي صفوف فارغة للخانات الأساسية
+                # First row contains student info, other rows are empty for basic columns
                 if i == 0:
                     row = [student_id, major, admission_year_full, admission_type] + cells
                 else:
@@ -67,21 +68,21 @@ if uploaded_file is not None:
                 all_rows.append(row)
 
         if not all_rows:
-            st.warning("⚠️ لم يتم العثور على أي بيانات في الملف.")
+            st.warning("⚠️ No data found in the file.")
         else:
             max_cols = max(len(r) for r in all_rows)
             for r in all_rows:
                 while len(r) < max_cols:
                     r.append("")
-            columns = ["رقم الطالب", "التخصص", "سنة القبول", "نوع القبول"] + [f"Column{i}" for i in range(1, max_cols - 4 + 1)]
+            columns = ["Student ID", "Major", "Admission Year", "Admission Type"] + [f"Column{i}" for i in range(1, max_cols - 4 + 1)]
             df = pd.DataFrame(all_rows, columns=columns)
 
-            # حفظ الملف في الذاكرة بصيغة Excel
+            # Save Excel file in memory
             excel_buffer = io.BytesIO()
             df.to_excel(excel_buffer, index=False)
             excel_buffer.seek(0)
 
-            # تعديل عرض الأعمدة تلقائياً
+            # Auto-adjust column widths
             wb = load_workbook(excel_buffer)
             ws = wb.active
             for col in ws.columns:
@@ -100,6 +101,7 @@ if uploaded_file is not None:
 
             file_name = uploaded_file.name.replace(".aspx", ".xlsx")
 
+            # Upload the Excel file to Supabase Storage
             res = supabase.storage.from_(BUCKET_NAME).upload(
                 file_name,
                 excel_buffer2.getvalue(),
@@ -107,10 +109,10 @@ if uploaded_file is not None:
             )
 
             if "error" in str(res).lower():
-                st.error(f"❌ حدث خطأ أثناء رفع الملف إلى Supabase: {res}")
+                st.error(f"❌ Error uploading file to Supabase: {res}")
             else:
-                st.success(f"✅ تم تحويل ورفع الملف بنجاح إلى Supabase ({file_name})!")
+                st.success(f"✅ File successfully converted and uploaded to Supabase ({file_name})!")
 
     except Exception as e:
-        st.error(f"❌ خطأ أثناء المعالجة: {e}")
+        st.error(f"❌ Processing error: {e}")
 
