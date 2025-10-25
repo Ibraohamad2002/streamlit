@@ -5,41 +5,41 @@ import io
 import re
 from supabase import create_client, Client
 
-# إعداد Supabase
-SUPABASE_URL = "https://ociaekhyqtiintzguudo.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9jaWFla2h5cXRpaW50emd1dWRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzMjI0OTAsImV4cCI6MjA3Njg5ODQ5MH0.7yeAbnv2KUqaAvbyxr8mRvpG9oALl4k9mmJd3_UmwCU"
-BUCKET_NAME = "uploads"
+# ---------------- Supabase Config ----------------
+SUPABASE_URL = "https://ociaekhyqtiintzguudo.supabase.co"  # ضع رابط مشروعك هنا
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9jaWFla2h5cXRpaW50emd1dWRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzMjI0OTAsImV4cCI6MjA3Njg5ODQ5MH0.7yeAbnv2KUqaAvbyxr8mRvpG9oALl4k9mmJd3_UmwCU"  # ضع المفتاح هنا
+BUCKET_NAME = "uploads"  # اسم البكت عندك
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-st.title("Upload Student ASPX Files")
+# ---------------- Streamlit UI ----------------
+st.set_page_config(page_title="Upload & Convert ASPX to Excel", page_icon="📤")
+st.title("📤 Upload Student File")
 
-uploaded_file = st.file_uploader("📤 اختر ملف ASPX", type=["aspx"])
+uploaded_file = st.file_uploader("اختر ملف ASPX", type=["aspx"])
 
 if uploaded_file is not None:
     try:
+        # قراءة محتوى الملف
         content = uploaded_file.read().decode("utf-8")
         soup = BeautifulSoup(content, "html.parser")
         tables = soup.find_all("table")
 
-        # استخراج بيانات الطالب من أعلى الصفحة أو من صف محدد
-        full_text = soup.get_text(separator="\n")
-        name_match = re.search(r"اسم الطالب\s*[:\-]?\s*(\S.+)", full_text)
-        id_match = re.search(r"رقم الطالب\s*[:\-]?\s*(\S+)", full_text)
-        major_match = re.search(r"التخصص\s*[:\-]?\s*(\S.+)", full_text)
-        admission_year_match = re.search(r"سنة القبول\s*[:\-]?\s*(\d{4})", full_text)
-        admission_type_match = re.search(r"نوع القبول\s*[:\-]?\s*(\S+)", full_text)
-
-        student_name = name_match.group(1).strip() if name_match else ""
-        student_id = id_match.group(1).strip() if id_match else ""
-        major = major_match.group(1).strip() if major_match else ""
-        admission_year = admission_year_match.group(1).strip() if admission_year_match else ""
-        admission_type = admission_type_match.group(1).strip() if admission_type_match else ""
-
         all_rows = []
         current_semester, current_year = "", ""
+        student_name_parts = ["", "", "", ""]  # 4 مقاطع لاسم الطالب
+        admission_year = ""
+        admission_type = ""
 
         for table in tables:
+            # محاولة استخراج معلومات الطالب (افترض مكانها بالـ class "student-info")
+            info_tds = table.find_all("td", class_="student-info")
+            if info_tds:
+                student_name_parts = [td.get_text(strip=True) for td in info_tds[:4]]
+                admission_year = info_tds[4].get_text(strip=True) if len(info_tds) > 4 else ""
+                admission_type = info_tds[5].get_text(strip=True) if len(info_tds) > 5 else ""
+
+            # استخراج عنوان الفصل الدراسي
             title_td = table.find("td", colspan=True)
             if title_td:
                 title_text = title_td.get_text(strip=True)
@@ -47,9 +47,6 @@ if uploaded_file is not None:
                 year_match = re.search(r'(\d{4}/\d{4})', title_text)
                 current_semester = semester_match.group(1) if semester_match else ""
                 current_year = year_match.group(1) if year_match else ""
-                # إضافة صف فارغ للفصل السابق
-                if all_rows:
-                    all_rows.append([""]*7)
                 continue
 
             for tr in table.find_all("tr"):
@@ -58,8 +55,11 @@ if uploaded_file is not None:
                 cells = [td.get_text(strip=True) for td in tr.find_all(["td", "th"])]
                 if not cells:
                     continue
-                # إضافة بيانات الطالب في أول الأعمدة
-                all_rows.append([student_name, student_id, major, admission_year, admission_type, current_semester, current_year] + cells)
+                # أضف معلومات الطالب مرة واحدة فقط لكل جدول
+                if not all_rows or all_rows[-1][0:4] != student_name_parts:
+                    all_rows.append(student_name_parts + [admission_year, admission_type] + [current_semester, current_year] + cells)
+                else:
+                    all_rows.append([""]*4 + ["",""] + [current_semester, current_year] + cells)
 
         if not all_rows:
             st.warning("⚠️ لم يتم العثور على أي بيانات في الملف.")
@@ -69,7 +69,9 @@ if uploaded_file is not None:
             for r in all_rows:
                 while len(r) < max_cols:
                     r.append("")
-            columns = ["اسم الطالب", "رقم الطالب", "التخصص", "سنة القبول", "نوع القبول", "الفصل الدراسي", "السنة الدراسية"] + [f"Column{i}" for i in range(1, max_cols - 7 + 1)]
+            columns = ["اسم الطالب 1", "اسم الطالب 2", "اسم الطالب 3", "اسم الطالب 4",
+                       "سنة القبول", "نوع القبول",
+                       "الفصل الدراسي", "السنة الدراسية"] + [f"Column{i}" for i in range(1, max_cols - 8)]
             df = pd.DataFrame(all_rows, columns=columns)
 
             # حفظ الملف في الذاكرة بصيغة Excel
