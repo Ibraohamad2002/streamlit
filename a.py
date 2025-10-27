@@ -99,7 +99,9 @@ if uploaded_file is not None:
             wb.save(excel_buffer2)
             excel_buffer2.seek(0)
 
-            file_name = f"{student_id}_{int(time.time())}.xlsx"
+        
+            safe_id = re.sub(r'[^A-Za-z0-9_-]', '_', student_id)
+            file_name = f"{safe_id}_{int(time.time())}.xlsx"
 
             # Upload the Excel file to Supabase Storage
             res = supabase.storage.from_(BUCKET_NAME).upload(
