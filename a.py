@@ -6,7 +6,7 @@ import re
 from supabase import create_client, Client
 from openpyxl.utils import get_column_letter
 from openpyxl import load_workbook
-
+import time
 # Supabase configuration
 SUPABASE_URL = "https://ociaekhyqtiintzguudo.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9jaWFla2h5cXRpaW50emd1dWRvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEzMjI0OTAsImV4cCI6MjA3Njg5ODQ5MH0.7yeAbnv2KUqaAvbyxr8mRvpG9oALl4k9mmJd3_UmwCU"
@@ -99,7 +99,7 @@ if uploaded_file is not None:
             wb.save(excel_buffer2)
             excel_buffer2.seek(0)
 
-            file_name = uploaded_file.name.replace(".aspx", ".xlsx")
+          file_name = f"{student_id}_{int(time.time())}.xlsx"
 
             # Upload the Excel file to Supabase Storage
             res = supabase.storage.from_(BUCKET_NAME).upload(
