@@ -9,7 +9,7 @@ from openpyxl import load_workbook
 import time
 
 # 🔹 إعدادات Supabase
-SUPABASE_URL = "https://khrqitmudxijsuorwhvj.supabase"
+SUPABASE_URL = "https://khrqitmudxijsuorwhvj.supabase.co"
 SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtocnFpdG11ZHhpanN1b3J3aHZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMwNDcwNDMsImV4cCI6MjA3ODYyMzA0M30.Jb61EjkNFqx7mOz5tX_3yKT-fnX7zBJNyAEVSnpSmxg"
 BUCKET_NAME = "uploads"
 
